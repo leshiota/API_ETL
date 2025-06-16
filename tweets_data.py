@@ -1,0 +1,112 @@
+import tweepy
+import os
+from dotenv import load_dotenv
+import pandas as pd
+from prefect import flow, task
+import requests
+import mysql.connector
+
+
+
+load_dotenv()
+bearer_token = os.getenv("bearer_token")
+user_db = os.getenv("user_db")
+passwd_db = os.getenv("passwd_db")
+search_query = '"Mercado livre" "Frete grátis" "R$19" -is:retweet -is:reply -has:links'
+number_of_tweets = 100
+
+
+@task(name ='token_connection')
+def connection(bearer_token: str):
+    """Create the connection with X API"""
+    return tweepy.Client(bearer_token, return_type = requests.Response)
+
+def tweet_data(query: str, max_results: int = 100):
+    """Fetch tweets using the X API."""
+    response = client.search_recent_tweets(
+        query=query,
+        tweet_fields=["created_at", "public_metrics", "author_id","text"]
+        max_results=max_results
+    )
+    tweets = response.data or []
+    return [
+        {
+            "id": tweet.id,
+            "created_at": tweet.created_at,
+            "author_id": tweet.author_id,
+            "likes" : tweet.public_metrics["like_count"],
+            "text": tweet.text
+        }
+        for tweet in tweets
+    ]
+
+
+@task
+def conect_database(pg_user: str,pg_password: str):
+    """Create the connection with Mysql"""
+    host_db = 'localhost'
+
+
+    return mysql.connector.connect(
+        host = {host_db},
+        user = {user_db},
+        passwd = {passwd_db}
+        auth_plugin = "mysql_native_password")
+
+@task
+def create_database(mydb: str,database_name: str):
+    """Create database"""
+    my_cursor = mydb.cursor()
+
+    return my_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+
+
+@task
+def create_table(mydb: str):
+    """Create table"""
+    my_cursor = mydb.cursor()
+
+    return my_cursor.execute(f"CREATE TABLE IF NOT EXISTS tweet_data_meli (tweeter_id int, created_at timestamp, author_id VARCHAR(200),likes int,text VARCHAR(10000))")
+
+
+@task
+def tweets_information(number_of_tweets, search_query, mydb):
+    try:
+        response = client.search_recent_tweets(
+            query=search_query,
+            max_results=number_of_tweets,
+            tweet_fields=["created_at", "public_metrics", "author_id","text"]
+        )
+
+        tweets_data = []
+        for tweet in response.data:
+            id = tweet.id,
+            creted_at = tweet.created_at,
+            author_id = tweet.author_id,
+            likes = tweet.public_metrics["like_count"],
+            text  = tweet.text
+                
+            my_cursor = mydb.cursor()
+            my_cursor.execute('INSERT INTO tweet_data_meli (tweeter_id, created_at, author_id, likes, text) VALUES (id, created_at, author_id, likes, text)')
+            mydb.commit()
+
+    except tweepy.TooManyRequests:
+        print("Erro: Limite de requisições excedido. Tente novamente mais tarde.")
+    except Exception as e:
+        print("Erro ao buscar tweets:", str(e))
+
+@task
+def save_database(mybd):
+    """Insert X data into database"""
+    
+
+
+@flow(name='Twitter_ETL')
+def twitter_etl():
+
+
+if __name__ == "__main__":
+    twitter_etl()
+
+
+
