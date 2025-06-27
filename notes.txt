@@ -1,2 +1,1 @@
-get the first timestamp, do the query with this last time
-how update without duplicate data
+Docker

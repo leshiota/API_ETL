@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from prefect import flow, task
 import mysql.connector
+import datetime
 
 
 
@@ -19,10 +20,16 @@ mydb =mysql.connector.connect(
 
 my_cursor = mydb.cursor()
 
+my_cursor.execute("select created_date from g_tweeter_data_meli")
 
-query = my_cursor.execute("select min(created_at) from tweet_data_meli")
-result = my_cursor.fetchall()
-print(result)
+#my_cursor.execute("create temporary table duplicates_tweets as select tweeter_id from g_tweeter_data_meli group by tweeter_id having count(*)>1")
+
+#my_cursor.execute("delete from g_tweeter_data_meli where tweeter_id in (select tweeter_id from duplicates_tweets)")
+                  
+
+#mydb.commit()
+results = my_cursor.fetchall()
+print(results)
 
 my_cursor.close()
 mydb.close()
