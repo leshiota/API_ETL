@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+
+  app:
+    build:
+      context: .
+#    container_name: prefect_app
+    depends_on:
+      - db
+    env_file:
+      - .env
+#    volumes:
+#      - ./app:/app 
+    command: ["sh", "-c", "python connect_db.py && python main_flow.py"]
+
+  db:
+    container_name: db
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 110719
+      MYSQL_DATABASE: tweets_data
+    ports:
+     - "3306:3306"
+    volumes:
+     - mysql_data:/var/lib/mysql
+    healthcheck:  
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+volumes:
+   mysql_data:
